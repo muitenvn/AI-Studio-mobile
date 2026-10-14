@@ -2,33 +2,39 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Liquid Gallant Aesthetic - Deep Translucent Obsidian & Iridescent Luminescence
-val LiquidDarkBg = Color(0xFF080911)
-val LiquidGlassSurface = Color(0xCC101322) // Translucent acrylic glass
-val LiquidGlassSurfaceLight = Color(0x33FFFFFF)
-val LiquidGlassBorder = Color(0x408B5CF6) // Luminous violet glass rim
-val LiquidGlassBorderActive = Color(0x8000F5FF) // Electric cyan active border
+// Pure Liquid Glass Aesthetic (Neutral Frosted Crystal & Obsidian - No Purple Tint)
+val LiquidBgDark = Color(0xFF090B10)
+val LiquidSurfaceDark = Color(0xFF0E121B)
 
-// Liquid Gallant Neon Accents
-val LiquidCyan = Color(0xFF00F5FF)
-val LiquidViolet = Color(0xFF8B5CF6)
-val LiquidBlue = Color(0xFF3B82F6)
-val LiquidPurple = Color(0xFFA855F7)
-val LiquidMagenta = Color(0xFFFF2E93)
-val LiquidEmerald = Color(0xFF00F090)
-val LiquidAmber = Color(0xFFFFB703)
+// Translucent Neutral Glass Layers
+val LiquidGlassFill = Color(0x1FFFFFFF)         // Crisp translucent frosted glass
+val LiquidGlassFillStrong = Color(0x2EFFFFFF)   // Slightly stronger glass
+val LiquidGlassDock = Color(0xCC0E131F)         // Frosted dark acrylic dock
+val LiquidGlassHeader = Color(0xDB0A0E17)       // Frosted dark acrylic header
 
-// Text tokens
-val LiquidTextPrimary = Color(0xFFF8FAFC)
-val LiquidTextSecondary = Color(0xFF94A3B8)
-val LiquidTextMuted = Color(0xFF64748B)
+// Specular Glass Borders (Reflective ice / silver rim)
+val LiquidBorderGlass = Color(0x38FFFFFF)
+val LiquidBorderGlassSubtle = Color(0x1FFFFFFF)
+val LiquidBorderActive = Color(0x8058A6FF)      // Icy blue highlight for active state
 
-// Material Theme standard mappings
-val StudioPrimary = LiquidCyan
-val StudioOnPrimary = Color(0xFF001F29)
-val StudioPrimaryContainer = Color(0xFF004D61)
-val StudioOnPrimaryContainer = Color(0xFFBCE9FF)
+// Minimalist Modern Accents (Gemini Ice Blue & Clean Titanium)
+val LiquidAccentBlue = Color(0xFF388BFD)
+val LiquidAccentCyan = Color(0xFF58A6FF)
+val LiquidAccentGreen = Color(0xFF3FB950)
+val LiquidAccentAmber = Color(0xFFF0883E)
+val LiquidAccentRed = Color(0xFFF85149)
 
-val StudioSecondary = LiquidViolet
-val StudioSecondaryContainer = Color(0xFF331E56)
-val StudioTertiary = LiquidEmerald
+// High-legibility Typography Tokens
+val LiquidTextWhite = Color(0xFFF0F6FC)
+val LiquidTextGray = Color(0xFF8B949E)
+val LiquidTextDim = Color(0xFF6E7681)
+
+// Material Theme Mappings
+val StudioPrimary = LiquidAccentBlue
+val StudioOnPrimary = Color.White
+val StudioPrimaryContainer = Color(0xFF1F293D)
+val StudioOnPrimaryContainer = Color(0xFFC8E1FF)
+
+val StudioSecondary = LiquidAccentCyan
+val StudioSecondaryContainer = Color(0xFF162338)
+val StudioTertiary = LiquidAccentGreen

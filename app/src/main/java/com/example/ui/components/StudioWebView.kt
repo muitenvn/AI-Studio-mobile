@@ -35,11 +35,9 @@ private const val DESKTOP_USER_AGENT =
 @Composable
 fun StudioWebView(
     url: String,
+    isActive: Boolean,
     isDesktopMode: Boolean,
-    onProgressChange: (Int) -> Unit,
-    onTitleChange: (String) -> Unit,
-    onHistoryChange: (canGoBack: Boolean, canGoForward: Boolean) -> Unit,
-    onError: (String?) -> Unit,
+    onStateUpdate: (title: String?, progress: Int, canBack: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     webViewInstance: (WebView?) -> Unit = {}
 ) {
@@ -47,7 +45,7 @@ fun StudioWebView(
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var filePathCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
 
-    // File chooser launcher for uploading images/code/prompts
+    // File chooser for uploads (prompt media, code, datasets)
     val fileChooserLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -62,28 +60,19 @@ fun StudioWebView(
         filePathCallback = null
     }
 
-    // Handle Hardware / Gesture Back navigation inside WebView
+    // Hardware back press: active only when this tab is selected and can go back
     val canGoBack = webViewRef?.canGoBack() == true
-    BackHandler(enabled = canGoBack) {
+    BackHandler(enabled = isActive && canGoBack) {
         webViewRef?.goBack()
     }
 
     // React to Desktop Mode changes
-    LaunchedEffect(isDesktopMode, webViewRef) {
+    LaunchedEffect(isDesktopMode) {
         webViewRef?.let { wv ->
             wv.settings.userAgentString = if (isDesktopMode) DESKTOP_USER_AGENT else null
             wv.settings.useWideViewPort = isDesktopMode
             wv.settings.loadWithOverviewMode = isDesktopMode
             wv.reload()
-        }
-    }
-
-    // React to URL changes from external navigation
-    LaunchedEffect(url) {
-        webViewRef?.let { wv ->
-            if (wv.url != url) {
-                wv.loadUrl(url)
-            }
         }
     }
 
@@ -96,7 +85,6 @@ fun StudioWebView(
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
 
-                // Cookie manager setup for Google sign-in
                 val cookieManager = CookieManager.getInstance()
                 cookieManager.setAcceptCookie(true)
                 cookieManager.setAcceptThirdPartyCookies(this, true)
@@ -117,14 +105,23 @@ fun StudioWebView(
                     loadWithOverviewMode = isDesktopMode
                 }
 
+                setDownloadListener { downloadUrl, _, _, _, _ ->
+                    try {
+                        val downloadIntent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl))
+                        context.startActivity(downloadIntent)
+                    } catch (e: Exception) {
+                        // ignore or handle
+                    }
+                }
+
                 webChromeClient = object : WebChromeClient() {
                     override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                        onProgressChange(newProgress)
+                        onStateUpdate(view?.title, newProgress, view?.canGoBack() == true)
                     }
 
                     override fun onReceivedTitle(view: WebView?, title: String?) {
                         super.onReceivedTitle(view, title)
-                        title?.let { onTitleChange(it) }
+                        onStateUpdate(title, view?.progress ?: 100, view?.canGoBack() == true)
                     }
 
                     override fun onShowFileChooser(
@@ -150,58 +147,35 @@ fun StudioWebView(
                     }
                 }
 
-                // Support downloading files (such as APKs from GitHub Actions)
-                setDownloadListener { downloadUrl, _, _, _, _ ->
-                    try {
-                        val downloadIntent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl))
-                        context.startActivity(downloadIntent)
-                    } catch (e: Exception) {
-                        onError("Cannot initiate download: ${e.message}")
-                    }
-                }
-
                 webViewClient = object : WebViewClient() {
                     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                         super.onPageStarted(view, url, favicon)
-                        onError(null)
+                        onStateUpdate(view?.title, 10, view?.canGoBack() == true)
                     }
 
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
-                        onHistoryChange(canGoBack(), canGoForward())
-                    }
-
-                    override fun onReceivedError(
-                        view: WebView?,
-                        request: WebResourceRequest?,
-                        error: WebResourceError?
-                    ) {
-                        super.onReceivedError(view, request, error)
-                        if (request?.isForMainFrame == true) {
-                            onError(error?.description?.toString() ?: "Failed to load page")
-                        }
+                        onStateUpdate(view?.title, 100, view?.canGoBack() == true)
                     }
 
                     override fun shouldOverrideUrlLoading(
                         view: WebView?,
                         request: WebResourceRequest?
                     ): Boolean {
-                        val targetUrl = request?.url?.toString() ?: return false
+                        val target = request?.url?.toString() ?: return false
 
-                        // Keep Google AI Studio, Google auth, and GitHub in-app
-                        if (targetUrl.contains("aistudio.google.com") ||
-                            targetUrl.contains("accounts.google.com") ||
-                            targetUrl.contains("ai.google.dev") ||
-                            targetUrl.contains("google.com/auth") ||
-                            targetUrl.contains("github.com")
+                        if (target.contains("aistudio.google.com") ||
+                            target.contains("accounts.google.com") ||
+                            target.contains("ai.google.dev") ||
+                            target.contains("google.com/auth") ||
+                            target.contains("github.com")
                         ) {
                             return false
                         }
 
-                        // External mailto or tel links
-                        if (targetUrl.startsWith("mailto:") || targetUrl.startsWith("tel:")) {
+                        if (target.startsWith("mailto:") || target.startsWith("tel:")) {
                             try {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target))
                                 context.startActivity(intent)
                                 return true
                             } catch (e: Exception) {
@@ -209,7 +183,6 @@ fun StudioWebView(
                             }
                         }
 
-                        // Allow navigating standard links inside webview
                         return false
                     }
                 }

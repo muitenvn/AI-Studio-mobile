@@ -8,109 +8,67 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class StudioViewModel(application: Application) : AndroidViewModel(application) {
 
-    // Default to Google AI Studio New App
-    private val _currentUrl = MutableStateFlow("https://aistudio.google.com/apps/new")
-    val currentUrl: StateFlow<String> = _currentUrl.asStateFlow()
-
-    private val _webTitle = MutableStateFlow("AI Studio - New App")
-    val webTitle: StateFlow<String> = _webTitle.asStateFlow()
-
-    private val _webProgress = MutableStateFlow(0)
-    val webProgress: StateFlow<Int> = _webProgress.asStateFlow()
-
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    // Tab 0: AI Studio, Tab 1: GitHub
+    private val _currentTab = MutableStateFlow(0)
+    val currentTab: StateFlow<Int> = _currentTab.asStateFlow()
 
     // Desktop view toggle
     private val _isDesktopMode = MutableStateFlow(false)
     val isDesktopMode: StateFlow<Boolean> = _isDesktopMode.asStateFlow()
 
-    private val _canGoBack = MutableStateFlow(false)
-    val canGoBack: StateFlow<Boolean> = _canGoBack.asStateFlow()
-
-    private val _canGoForward = MutableStateFlow(false)
-    val canGoForward: StateFlow<Boolean> = _canGoForward.asStateFlow()
-
-    private val _loadError = MutableStateFlow<String?>(null)
-    val loadError: StateFlow<String?> = _loadError.asStateFlow()
-
-    // Toast / Feedback message
+    // Feedback message
     private val _toastMessage = MutableStateFlow<String?>(null)
     val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
 
-    // Liquid Gallant Hub Sheet state
-    private val _isHubSheetOpen = MutableStateFlow(false)
-    val isHubSheetOpen: StateFlow<Boolean> = _isHubSheetOpen.asStateFlow()
+    // --- Tab 0: Google AI Studio ---
+    val aiStudioUrl = "https://aistudio.google.com/apps/new"
+    private val _aiStudioTitle = MutableStateFlow("Google AI Studio")
+    val aiStudioTitle: StateFlow<String> = _aiStudioTitle.asStateFlow()
 
-    fun navigateToUrl(url: String) {
-        _loadError.value = null
-        _currentUrl.value = url
-        _isHubSheetOpen.value = false
-    }
+    private val _aiStudioProgress = MutableStateFlow(0)
+    val aiStudioProgress: StateFlow<Int> = _aiStudioProgress.asStateFlow()
 
-    fun openNewApp() {
-        navigateToUrl("https://aistudio.google.com/apps/new")
-    }
+    private val _aiStudioLoading = MutableStateFlow(false)
+    val aiStudioLoading: StateFlow<Boolean> = _aiStudioLoading.asStateFlow()
 
-    fun openGitHub() {
-        navigateToUrl("https://github.com")
-    }
+    private val _aiStudioCanBack = MutableStateFlow(false)
+    val aiStudioCanBack: StateFlow<Boolean> = _aiStudioCanBack.asStateFlow()
 
-    fun openGitHubNew() {
-        navigateToUrl("https://github.com/new")
-    }
+    // --- Tab 1: GitHub ---
+    val githubUrl = "https://github.com"
+    private val _githubTitle = MutableStateFlow("GitHub")
+    val githubTitle: StateFlow<String> = _githubTitle.asStateFlow()
 
-    fun openStudioHome() {
-        navigateToUrl("https://aistudio.google.com")
-    }
+    private val _githubProgress = MutableStateFlow(0)
+    val githubProgress: StateFlow<Int> = _githubProgress.asStateFlow()
 
-    fun openApiKey() {
-        navigateToUrl("https://aistudio.google.com/app/apikey")
-    }
+    private val _githubLoading = MutableStateFlow(false)
+    val githubLoading: StateFlow<Boolean> = _githubLoading.asStateFlow()
 
-    fun openChatPrompt() {
-        navigateToUrl("https://aistudio.google.com/prompts/new_chat")
-    }
+    private val _githubCanBack = MutableStateFlow(false)
+    val githubCanBack: StateFlow<Boolean> = _githubCanBack.asStateFlow()
 
-    fun openFreeformPrompt() {
-        navigateToUrl("https://aistudio.google.com/prompts/new_freeform")
+    fun setTab(index: Int) {
+        _currentTab.value = index
     }
 
     fun toggleDesktopMode() {
         _isDesktopMode.value = !_isDesktopMode.value
-        showToast(if (_isDesktopMode.value) "Desktop Mode Enabled" else "Mobile Mode Enabled")
+        showToast(if (_isDesktopMode.value) "Desktop view enabled" else "Mobile view enabled")
     }
 
-    fun toggleHubSheet() {
-        _isHubSheetOpen.value = !_isHubSheetOpen.value
+    fun updateAIStudio(title: String?, progress: Int, canBack: Boolean) {
+        if (!title.isNullOrBlank()) _aiStudioTitle.value = title
+        _aiStudioProgress.value = progress
+        _aiStudioLoading.value = progress in 1..99
+        _aiStudioCanBack.value = canBack
     }
 
-    fun setHubSheetOpen(isOpen: Boolean) {
-        _isHubSheetOpen.value = isOpen
-    }
-
-    fun updateWebProgress(progress: Int) {
-        _webProgress.value = progress
-        _isLoading.value = progress in 1..99
-    }
-
-    fun updateWebTitle(title: String) {
-        if (title.isNotBlank()) {
-            _webTitle.value = title
-        }
-    }
-
-    fun updateWebHistory(canBack: Boolean, canForward: Boolean) {
-        _canGoBack.value = canBack
-        _canGoForward.value = canForward
-    }
-
-    fun setLoadError(error: String?) {
-        _loadError.value = error
-    }
-
-    fun clearLoadError() {
-        _loadError.value = null
+    fun updateGitHub(title: String?, progress: Int, canBack: Boolean) {
+        if (!title.isNullOrBlank()) _githubTitle.value = title
+        _githubProgress.value = progress
+        _githubLoading.value = progress in 1..99
+        _githubCanBack.value = canBack
     }
 
     fun showToast(message: String) {

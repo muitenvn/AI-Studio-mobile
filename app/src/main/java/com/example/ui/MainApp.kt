@@ -11,7 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.screens.StudioWebScreen
-import com.example.ui.theme.LiquidDarkBg
+import com.example.ui.theme.LiquidBgDark
 import com.example.viewmodel.StudioViewModel
 
 @Composable
@@ -31,7 +31,7 @@ fun MainApp(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = LiquidDarkBg,
+        containerColor = LiquidBgDark,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         StudioWebScreen(
