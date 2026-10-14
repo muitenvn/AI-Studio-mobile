@@ -1,0 +1,6 @@
+{
+  "name": "AI Studio Mobile",
+  "description": "Ứng dụng Google AI Studio Mobile với trải nghiệm Web đầy đủ, chế độ Desktop/Mobile, quản lý Prompt Scratchpad và API tools.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">AI Studio Mobile</string>
+    <string name="nav_studio">AI Studio</string>
+    <string name="nav_hub">Studio Hub</string>
+    <string name="nav_prompts">Prompt Library</string>
+    <string name="nav_settings">Settings</string>
+
+    <string name="btn_desktop_mode">Desktop View</string>
+    <string name="btn_mobile_mode">Mobile View</string>
+    <string name="btn_reload">Reload</string>
+    <string name="btn_home">Home</string>
+    <string name="btn_share">Share URL</string>
+    <string name="btn_open_external">Open in Browser</string>
+    <string name="btn_copy_url">Copy Link</string>
+    <string name="btn_new_prompt">New Prompt</string>
+
+    <string name="shortcut_chat">Chat Prompt</string>
+    <string name="shortcut_freeform">Freeform Prompt</string>
+    <string name="shortcut_structured">Structured Prompt</string>
+    <string name="shortcut_apikey">Get API Key</string>
+    <string name="shortcut_docs">Gemini API Docs</string>
+    <string name="shortcut_tuning">Model Tuning</string>
+
+    <string name="offline_title">Connection Error</string>
+    <string name="offline_msg">Could not load Google AI Studio. Check your network connection.</string>
+    <string name="btn_retry">Try Again</string>
+</resources>
