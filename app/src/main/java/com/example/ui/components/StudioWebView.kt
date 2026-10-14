@@ -150,6 +150,16 @@ fun StudioWebView(
                     }
                 }
 
+                // Support downloading files (such as APKs from GitHub Actions)
+                setDownloadListener { downloadUrl, _, _, _, _ ->
+                    try {
+                        val downloadIntent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl))
+                        context.startActivity(downloadIntent)
+                    } catch (e: Exception) {
+                        onError("Cannot initiate download: ${e.message}")
+                    }
+                }
+
                 webViewClient = object : WebViewClient() {
                     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                         super.onPageStarted(view, url, favicon)
@@ -178,11 +188,12 @@ fun StudioWebView(
                     ): Boolean {
                         val targetUrl = request?.url?.toString() ?: return false
 
-                        // Keep Google AI Studio and Google authentication in-app
+                        // Keep Google AI Studio, Google auth, and GitHub in-app
                         if (targetUrl.contains("aistudio.google.com") ||
                             targetUrl.contains("accounts.google.com") ||
                             targetUrl.contains("ai.google.dev") ||
-                            targetUrl.contains("google.com/auth")
+                            targetUrl.contains("google.com/auth") ||
+                            targetUrl.contains("github.com")
                         ) {
                             return false
                         }
