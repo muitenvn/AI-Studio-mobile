@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -23,19 +23,18 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,7 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,16 +58,16 @@ import com.example.ui.theme.LiquidAccentCyan
 import com.example.ui.theme.LiquidAccentGreen
 import com.example.ui.theme.LiquidBgDark
 import com.example.ui.theme.LiquidBorderActive
-import com.example.ui.theme.LiquidBorderGlass
 import com.example.ui.theme.LiquidBorderGlassSubtle
 import com.example.ui.theme.LiquidGlassFill
 import com.example.ui.theme.LiquidGlassHeader
-import com.example.ui.theme.LiquidTextDim
 import com.example.ui.theme.LiquidTextGray
 import com.example.ui.theme.LiquidTextWhite
 import com.example.viewmodel.StudioViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudioWebScreen(
     viewModel: StudioViewModel,
@@ -78,24 +77,23 @@ fun StudioWebScreen(
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
 
     val isDesktopMode by viewModel.isDesktopMode.collectAsStateWithLifecycle()
-    val aiStudioTitle by viewModel.aiStudioTitle.collectAsStateWithLifecycle()
     val aiStudioProgress by viewModel.aiStudioProgress.collectAsStateWithLifecycle()
     val aiStudioLoading by viewModel.aiStudioLoading.collectAsStateWithLifecycle()
-    val aiStudioCanBack by viewModel.aiStudioCanBack.collectAsStateWithLifecycle()
-
-    val githubTitle by viewModel.githubTitle.collectAsStateWithLifecycle()
     val githubProgress by viewModel.githubProgress.collectAsStateWithLifecycle()
     val githubLoading by viewModel.githubLoading.collectAsStateWithLifecycle()
-    val githubCanBack by viewModel.githubCanBack.collectAsStateWithLifecycle()
 
     var aiStudioWebViewRef by remember { mutableStateOf<WebView?>(null) }
     var githubWebViewRef by remember { mutableStateOf<WebView?>(null) }
 
     val isAIStudioActive = pagerState.currentPage == 0
-    val currentTitle = if (isAIStudioActive) aiStudioTitle else githubTitle
     val currentProgress = if (isAIStudioActive) aiStudioProgress else githubProgress
     val currentLoading = if (isAIStudioActive) aiStudioLoading else githubLoading
-    val currentCanBack = if (isAIStudioActive) aiStudioCanBack else githubCanBack
+
+    // Pull to refresh states
+    var isRefreshingAI by remember { mutableStateOf(false) }
+    var isRefreshingGH by remember { mutableStateOf(false) }
+    val refreshStateAI = rememberPullToRefreshState()
+    val refreshStateGH = rememberPullToRefreshState()
 
     LaunchedEffect(pagerState.currentPage) {
         viewModel.setTab(pagerState.currentPage)
@@ -106,41 +104,70 @@ fun StudioWebScreen(
             .fillMaxSize()
             .background(LiquidBgDark)
     ) {
-        // --- HORIZONTAL PAGER: SWIPE LEFT / RIGHT TO SWITCH TABS ---
-        // Both web pages stay 100% alive in memory! No reloads on swipe!
+        // --- HORIZONTAL PAGER: WEBVIEWS ---
         HorizontalPager(
             state = pagerState,
             beyondViewportPageCount = 1,
             modifier = Modifier.fillMaxSize()
         ) { page ->
             if (page == 0) {
-                // Tab 0: Google AI Studio
-                StudioWebView(
-                    url = viewModel.aiStudioUrl,
-                    isActive = pagerState.currentPage == 0,
-                    isDesktopMode = isDesktopMode,
-                    onStateUpdate = { title, progress, canBack ->
-                        viewModel.updateAIStudio(title, progress, canBack)
+                // Tab 0: AI Studio with Pull-to-Refresh
+                PullToRefreshBox(
+                    isRefreshing = isRefreshingAI,
+                    state = refreshStateAI,
+                    onRefresh = {
+                        isRefreshingAI = true
+                        aiStudioWebViewRef?.reload()
+                        coroutineScope.launch {
+                            delay(1000)
+                            isRefreshingAI = false
+                        }
                     },
-                    webViewInstance = { aiStudioWebViewRef = it },
                     modifier = Modifier.fillMaxSize()
-                )
+                ) {
+                    StudioWebView(
+                        url = viewModel.aiStudioUrl,
+                        isActive = pagerState.currentPage == 0,
+                        isDesktopMode = isDesktopMode,
+                        onStateUpdate = { title, progress, canBack ->
+                            viewModel.updateAIStudio(title, progress, canBack)
+                            if (progress == 100) isRefreshingAI = false
+                        },
+                        webViewInstance = { aiStudioWebViewRef = it },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             } else {
-                // Tab 1: GitHub
-                StudioWebView(
-                    url = viewModel.githubUrl,
-                    isActive = pagerState.currentPage == 1,
-                    isDesktopMode = isDesktopMode,
-                    onStateUpdate = { title, progress, canBack ->
-                        viewModel.updateGitHub(title, progress, canBack)
+                // Tab 1: GitHub with Pull-to-Refresh
+                PullToRefreshBox(
+                    isRefreshing = isRefreshingGH,
+                    state = refreshStateGH,
+                    onRefresh = {
+                        isRefreshingGH = true
+                        githubWebViewRef?.reload()
+                        coroutineScope.launch {
+                            delay(1000)
+                            isRefreshingGH = false
+                        }
                     },
-                    webViewInstance = { githubWebViewRef = it },
                     modifier = Modifier.fillMaxSize()
-                )
+                ) {
+                    StudioWebView(
+                        url = viewModel.githubUrl,
+                        isActive = pagerState.currentPage == 1,
+                        isDesktopMode = isDesktopMode,
+                        onStateUpdate = { title, progress, canBack ->
+                            viewModel.updateGitHub(title, progress, canBack)
+                            if (progress == 100) isRefreshingGH = false
+                        },
+                        webViewInstance = { githubWebViewRef = it },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
 
-        // --- BROWSER TOP BAR (MINIMALIST & FULL SCREEN) ---
+        // --- SLΕEK TOP LINK BAR WITH SWIPE-TO-SWITCH GESTURE ---
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -156,62 +183,54 @@ fun StudioWebScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Back navigation button
-                        if (currentCanBack) {
-                            IconButton(
-                                onClick = {
-                                    if (isAIStudioActive) {
-                                        aiStudioWebViewRef?.goBack()
-                                    } else {
-                                        githubWebViewRef?.goBack()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // Swipe horizontally strictly on this top link bar area to switch tabs
+                            .pointerInput(Unit) {
+                                detectHorizontalDragGestures(
+                                    onHorizontalDrag = { _, dragAmount ->
+                                        if (dragAmount > 35 && pagerState.currentPage > 0) {
+                                            coroutineScope.launch { pagerState.animateScrollToPage(0) }
+                                        } else if (dragAmount < -35 && pagerState.currentPage < 1) {
+                                            coroutineScope.launch { pagerState.animateScrollToPage(1) }
+                                        }
                                     }
-                                },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Back",
-                                    tint = LiquidTextWhite,
-                                    modifier = Modifier.size(16.dp)
                                 )
-                            }
-                        }
-
-                        // Minimalist Browser Address & Tab Switcher Bar
+                            },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Address bar capsule
                         Surface(
-                            shape = RoundedCornerShape(18.dp),
+                            shape = RoundedCornerShape(20.dp),
                             color = LiquidGlassFill,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(36.dp)
-                                .border(1.dp, LiquidBorderGlassSubtle, RoundedCornerShape(18.dp))
+                                .height(40.dp)
+                                .border(1.dp, LiquidBorderGlassSubtle, RoundedCornerShape(20.dp))
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 10.dp),
+                                    .padding(horizontal = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Lock,
                                     contentDescription = "Secure",
                                     tint = LiquidAccentGreen,
-                                    modifier = Modifier.size(12.dp)
+                                    modifier = Modifier.size(13.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
 
-                                // Active Domain / Page Name
                                 Text(
                                     text = if (isAIStudioActive) "aistudio.google.com" else "github.com",
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold
+                                        fontWeight = FontWeight.Medium
                                     ),
                                     color = LiquidTextWhite,
                                     maxLines = 1,
@@ -219,22 +238,25 @@ fun StudioWebScreen(
                                     modifier = Modifier.weight(1f)
                                 )
 
-                                // Swipe Tabs Indicator: [ AI Studio ] | [ GitHub ]
+                                Spacer(modifier = Modifier.width(4.dp))
+
+                                // Spacious, perfectly formatted tab pills (Studio | GitHub)
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(start = 6.dp)
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    TabIndicatorDot(
+                                    TopHeaderTabButton(
                                         label = "Studio",
                                         isSelected = isAIStudioActive,
+                                        activeColor = LiquidAccentCyan,
                                         onClick = {
                                             coroutineScope.launch { pagerState.animateScrollToPage(0) }
                                         }
                                     )
-                                    TabIndicatorDot(
+                                    TopHeaderTabButton(
                                         label = "GitHub",
                                         isSelected = !isAIStudioActive,
+                                        activeColor = LiquidAccentBlue,
                                         onClick = {
                                             coroutineScope.launch { pagerState.animateScrollToPage(1) }
                                         }
@@ -243,37 +265,16 @@ fun StudioWebScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.width(6.dp))
-
-                        // Desktop / Mobile Mode Toggle
+                        // Desktop / Mobile Mode Toggle (Clean button)
                         IconButton(
                             onClick = { viewModel.toggleDesktopMode() },
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = if (isDesktopMode) Icons.Default.Computer else Icons.Default.PhoneAndroid,
                                 contentDescription = "Toggle Desktop View",
                                 tint = if (isDesktopMode) LiquidAccentCyan else LiquidTextGray,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        // Reload Button
-                        IconButton(
-                            onClick = {
-                                if (isAIStudioActive) {
-                                    aiStudioWebViewRef?.reload()
-                                } else {
-                                    githubWebViewRef?.reload()
-                                }
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Reload",
-                                tint = LiquidTextGray,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -292,81 +293,36 @@ fun StudioWebScreen(
                 )
             }
         }
-
-        // --- BOTTOM SWIPE GESTURE BAR (INDICATOR) ---
-        // Subtle hint bar at the bottom: swipe horizontally to glide between tabs
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(bottom = 6.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0x33000000),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable {
-                        val nextPage = if (pagerState.currentPage == 0) 1 else 0
-                        coroutineScope.launch { pagerState.animateScrollToPage(nextPage) }
-                    }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(width = if (isAIStudioActive) 18.dp else 6.dp, height = 4.dp)
-                            .clip(CircleShape)
-                            .background(if (isAIStudioActive) LiquidAccentCyan else LiquidTextDim)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(width = if (!isAIStudioActive) 18.dp else 6.dp, height = 4.dp)
-                            .clip(CircleShape)
-                            .background(if (!isAIStudioActive) LiquidAccentBlue else LiquidTextDim)
-                    )
-                    Text(
-                        text = if (isAIStudioActive) "Swipe to GitHub →" else "← Swipe to AI Studio",
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        color = LiquidTextGray
-                    )
-                }
-            }
-        }
     }
 }
 
 @Composable
-private fun TabIndicatorDot(
+private fun TopHeaderTabButton(
     label: String,
     isSelected: Boolean,
+    activeColor: Color,
     onClick: () -> Unit
 ) {
+    val containerColor = if (isSelected) activeColor.copy(alpha = 0.3f) else Color.Transparent
+    val border = if (isSelected) LiquidBorderActive else Color.Transparent
+    val textColor = if (isSelected) LiquidTextWhite else LiquidTextGray
+
     Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = if (isSelected) LiquidAccentBlue.copy(alpha = 0.35f) else Color.Transparent,
+        shape = RoundedCornerShape(14.dp),
+        color = containerColor,
         modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
-            .border(
-                1.dp,
-                if (isSelected) LiquidBorderActive else Color.Transparent,
-                RoundedCornerShape(10.dp)
-            )
+            .clip(RoundedCornerShape(14.dp))
+            .border(1.dp, border, RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                fontSize = 10.sp
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                fontSize = 11.sp
             ),
-            color = if (isSelected) LiquidTextWhite else LiquidTextDim,
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+            color = textColor,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
         )
     }
 }
